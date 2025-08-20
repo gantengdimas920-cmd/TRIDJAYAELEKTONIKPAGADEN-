@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>TRIDJAYA ELEKTRONIK - Security App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Font Awesome untuk ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- XLSX.js untuk ekspor ke Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        /* Gaya dasar untuk body, container utama, dan elemen lainnya. */
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            background: #0d1a26;
+        }
+
+        /* Latar belakang bintang bergerak */
+        .stars-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 90px 40px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 120px 10px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 150px 80px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 180px 20px, #eee, rgba(0,0,0,0));
+            background-size: 200px 200px;
+            animation: move-stars 120s linear infinite;
+            z-index: -2;
+        }
+
+        /* Animasi pergerakan bintang */
+        @keyframes move-stars {
+            from { background-position: 0 0; }
+            to { background-position: 200px 200px; }
+        }
+
+        /* Top menu yang tetap di atas */
+        .top-menu {
+            background: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(5px);
+        }
+        .top-menu .brand {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .menu-buttons button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.3s;
+            margin-left: 5px;
+        }
+        .menu-buttons button.active, .menu-buttons button:hover {
+            background-color: #34495e;
+            transform: scale(1.05);
+        }
+        .user-info-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px auto;
+            max-width: 800px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            color: #ecf0f1;
+        }
+        .login-card {
+            max-width: 350px;
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+        h2 {
+            color: #4a8df0;
+            border-bottom: 2px solid #4a8df0;
+            padding-bottom: 5px;
+            margin-top: 0;
+        }
+        h3 {
+            color: #4a8df0;
+        }
+        button, .btn {
+            background: #4a8df0;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 2px;
+            font-weight: bold;
+        }
+        button:hover, .btn:hover {
+            background: #2d5ea8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(74, 141, 240, 0.4);
+        }
+        .icon-button {
+            background: none;
+            border: 1px solid #4a8df0;
+            color: #4a8df0;
+            padding: 6px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .icon-button:hover {
+            background: #4a8df0;
+            color: white;
+            transform: scale(1.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            margin-top: 10px;
+        }
+        th, td {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ecf0f1;
+        }
+        th {
+            background: #2d5ea8;
+            color: white;
+            text-align: center;
+        }
+        th:first-child { border-top-left-radius: 8px; }
+        th:last-child { border-top-right-radius: 8px; }
+        tr:last-child td:first-child { border-bottom-left-radius: 8px; }
+        tr:last-child td:last-child { border-bottom-right-radius: 8px; }
+        input, select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #bbb;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+            transition: border-color 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ecf0f1;
+        }
+        input::placeholder {
+            color: #bbb;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4a8df0;
+        }
+        .hidden {
+            display: none;
+        }
+        .search-box {
+            margin: 10px 0;
+        }
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        @media (min-width: 600px) {
+            .input-group {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            }
+        }
+        .photo-preview {
+            max-width: 100px;
+            max-height: 100px;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            object-fit: contain;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            margin: 5% auto;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 12px;
+        }
+        .close-btn {
+            color: #fff;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 5px black;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: #999;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .verifikasi-table-container {
+            overflow-x: auto;
+        }
+        .verifikasi-item-row {
+            display: grid;
+            grid-template-columns: 30px 1fr 1fr 1fr 1fr 100px 1fr;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            align-items: center;
+        }
+        .verifikasi-item-row:last-child {
+            border-bottom: none;
+        }
+        .verifikasi-header {
+            font-weight: bold;
+            background: #2d5ea8;
+            color: white;
+            padding: 10px;
+            border-bottom: 2px solid #ccc;
+            display: grid;
+            grid-template-columns: 30px 1fr 1fr 1fr 1fr 100px 1fr;
+            gap: 10px;
+            border-radius: 8px;
+        }
+        .profile-menu {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .mutasi-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .mutasi-item-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        .item-selection-modal {
+            display: none;
+            position: fixed;
+            z-index: 101;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        .item-selection-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 5% auto;
+            max-width: 500px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: #333;
+        }
+        .item-selection-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .item-selection-row {
+            display: grid;
+            grid-template-columns: 30px 2fr 1fr 30px;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            align-items: center;
+            cursor: pointer;
+        }
+        .item-selection-row:hover {
+            background: #f0f4f7;
+        }
+
+        /* Custom Checkbox */
+        .custom-checkbox {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background-color: #4a8df0;
+            border-radius: 4px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .custom-checkbox:hover {
+            background-color: #2d5ea8;
+        }
+        .custom-checkbox::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 12px;
+            height: 12px;
+            background-color: white;
+            border-radius: 2px;
+            transition: transform 0.2s ease-in-out;
+        }
+        input[type="checkbox"]:checked + .custom-checkbox::after {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+        .checkbox-container input[type="checkbox"] {
+            display: none;
+        }
+
+        /* Container untuk input dengan ikon */
+        .input-with-icon {
+            position: relative;
+            width: 100%;
+            display: flex;
+        }
+
+        .input-with-icon input {
+            padding-right: 40px;
+            width: 100%;
+        }
+
+        .input-with-icon .search-icon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2em;
+            color: #4a8df0;
+            cursor: pointer;
+        }
+
+        /* Gaya untuk modal konfirmasi */
+        #confirmationModal .card {
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            text-align: center;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars-bg"></div>
+
+    <!-- Modal untuk menampilkan gambar -->
+    <div id="imageModal" class="modal">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <!-- Modal untuk konfirmasi aksi -->
+    <div id="confirmationModal" class="modal">
+        <div class="card" style="margin-top: 15%;">
+            <h3>Konfirmasi Aksi</h3>
+            <p id="confirmationMessage"></p>
+            <button id="confirmBtn">Ya</button>
+            <button id="cancelBtn">Batal</button>
+        </div>
+    </div>
+
+    <!-- Modal untuk menampilkan pesan info -->
+    <div id="infoModal" class="modal">
+        <div class="card" style="margin-top: 15%; max-width: 400px; text-align: center;">
+            <p id="modalMessage"></p>
+            <button onclick="closeInfoModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Modal untuk pemilihan barang -->
+    <div id="itemSelectionModal" class="item-selection-modal">
+        <div class="item-selection-card">
+            <h2>Pilih Barang</h2>
+            <input type="text" id="searchItemInput" placeholder="Cari barang..." onkeyup="renderItemSelectionList()">
+            <div id="itemSelectionList" class="item-selection-list"></div>
+            <div style="text-align: right; margin-top: 10px;">
+                <button onclick="closeItemSelectionModal()">Selesai</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Login -->
+    <div id="login" class="card login-card" style="margin: 100px auto;">
+        <h2>Login</h2>
+        <input id="loginUser" placeholder="Nama Lengkap">
+        <input id="loginPass" type="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <p>Belum punya akun? <button onclick="showRegister()">Register</button></p>
+    </div>
+
+    <!-- Register -->
+    <div id="register" class="card login-card hidden" style="margin: 100px auto;">
+        <h2>Register</h2>
+        <input id="regUser" placeholder="Nama Lengkap">
+        <input id="regPass" type="password" placeholder="Password">
+        <button onclick="register()">Daftar</button>
+        <button onclick="showLogin()">Kembali</button>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="mainApp" class="hidden">
+        <!-- Top Menu -->
+        <div class="top-menu">
+            <div class="brand">TRIDJAYA ELEKTRONIK</div>
+            <div class="menu-buttons">
+                <button id="pengirimanBtn" onclick="showPage('pengiriman')"><i class="fas fa-truck"></i> Pengiriman</button>
+                <button id="mutasiBtn" onclick="showPage('mutasi')"><i class="fas fa-exchange-alt"></i> Mutasi</button>
+                <button id="verifikasiBtn" onclick="showPage('verifikasi')"><i class="fas fa-check-circle"></i> Verifikasi Security</button>
+                <button id="profileBtn" onclick="showPage('profile')"><i class="fas fa-user"></i> Profil</button>
+            </div>
+            <div class="user-info-container">
+                <span id="loggedInUser"></span>
+                <button onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </div>
+
+        <!-- App Content -->
+        <div class="app-content">
+            <!-- Pengiriman -->
+            <div id="pengiriman" class="card hidden">
+                <h2>Pengiriman</h2>
+                <div class="input-group">
+                    <input id="pengirimanKonsumen" placeholder="Nama Konsumen">
+                    <div class="input-with-icon">
+                        <input id="pengirimanBarang" placeholder="Nama Barang">
+                        <i class="fas fa-search search-icon" onclick="openItemSelectionModal('pengirimanBarang')"></i>
+                    </div>
+                    <input id="pengirimanJumlah" type="number" placeholder="Jumlah" value="1" min="1">
+                    <input id="pengirimanDriver" placeholder="Nama Driver">
+                    <button onclick="addPengiriman()">Tambah</button>
+                </div>
+                <table id="pengirimanTable">
+                    <thead><tr><th>No</th><th>Konsumen</th><th>Barang</th><th>Jumlah</th><th>Driver</th><th>Aksi</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Mutasi -->
+            <div id="mutasi" class="card hidden">
+                <h2>Mutasi Barang</h2>
+                <div class="input-group">
+                    <input id="mutasiDriver" placeholder="Nama Driver">
+                    <select id="mutasiTujuan">
+                        <option>TRIDJAYA ELEKTRONIK PAGADEN</option>
+                        <option>TRIDJAYA ELEKTRONIK HAURGEULIS</option>
+                        <option>TRIDJAYA ELEKTRONIK SOKLAT</option>
+                        <option>TRIDJAYA ELEKTRONIK PETOKBEUSI</option>
+                        <option>TRIDJAYA ELEKTRONIK PURWADADI</option>
+                        <option>TRIDJAYA ELEKTRONIK PAMANUKAN</option>
+                        <option>TRIDJAYA ELEKTRONIK CIKAMPEK</option>
+                        <option>TRIDJAYA ELEKTRONIK CIMALAKA</option>
+                        <option>TRIDJAYA ELEKTRONIK PABUARAN</option>
+                        <option>TRIDJAYA ELEKTRONIK CIBADUYUT</option>
+                    </select>
+                </div>
+                <div id="mutasiInputs" class="mutasi-items">
+                    <!-- Item mutasi pertama akan selalu ada -->
+                    <div class="mutasi-item-row">
+                        <div class="input-with-icon">
+                            <input class="mutasi-barang" placeholder="Nama Barang">
+                            <i class="fas fa-search search-icon" onclick="openItemSelectionModal(this)"></i>
+                        </div>
+                        <input class="mutasi-jumlah" type="number" placeholder="Jumlah" value="1" min="1">
+                        <button onclick="removeMutasiInput(this)" class="btn-remove-item" style="background-color: #e74c3c;">Hapus</button>
+                    </div>
+                </div>
+                <button onclick="addMutasiInput()">Tambah Barang</button>
+                <button onclick="addMutasi()" style="margin-top: 10px;">Simpan Mutasi</button>
+                
+                <table id="mutasiTable">
+                    <thead><tr><th>No</th><th>Barang</th><th>Jumlah</th><th>Driver</th><th>Tujuan Mutasi</th><th>Aksi</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Verifikasi -->
+            <div id="verifikasi" class="card hidden">
+                <h2>Verifikasi Security</h2>
+                <hr>
+                <h3>Data yang Perlu Diverifikasi</h3>
+                <div class="verifikasi-header">
+                    <div></div>
+                    <div>Status</div>
+                    <div>Barang</div>
+                    <div>Jumlah</div>
+                    <div>Driver</div>
+                    <div>Foto</div>
+                    <div>Aksi</div>
+                </div>
+                <div id="dataToVerify" class="verifikasi-table-container">
+                    <!-- Ini akan diisi secara dinamis oleh JavaScript -->
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button onclick="verifySelectedItems()">Verifikasi yang Dipilih</button>
+                </div>
+            </div>
+
+            <!-- Profile Page -->
+            <div id="profile" class="card hidden">
+                <h2>Profil</h2>
+                <div class="profile-menu">
+                    <button id="profileBarangBtn" onclick="showProfileSection('barang')">Kelola Barang</button>
+                    <button id="profileVerifiedBtn" onclick="showProfileSection('verified')">Data Terverifikasi</button>
+                    <button id="adminBtn" onclick="showProfileSection('user')" class="hidden">Kelola User</button>
+                </div>
+
+                <div id="barangContainer" class="hidden">
+                    <h3>Kelola Barang</h3>
+                    <input type="file" id="excelInput" accept=".xlsx,.xls">
+                    <button onclick="uploadExcel()">Upload Excel</button>
+                    <div class="input-group">
+                        <input id="barangNama" placeholder="Nama Barang">
+                        <input id="barangJenis" placeholder="Jenis Barang">
+                        <button onclick="addBarang()">Tambah</button>
+                    </div>
+                    <div class="search-box">
+                        <input type="text" id="searchBarang" placeholder="Cari Nama Barang..." onkeyup="renderBarang()">
+                    </div>
+                    <table id="barangTable">
+                        <thead><tr><th>No</th><th>Nama</th><th>Jenis</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="verifiedContainer" class="hidden">
+                    <h3>Data Terverifikasi</h3>
+                    <button onclick="exportToExcel()">Ekspor ke Excel</button>
+                    <table id="verifiedTable">
+                        <thead><tr><th>No</th><th>Tanggal</th><th>Barang</th><th>Jumlah</th><th>Driver</th><th>Status</th><th>Foto</th><th>User</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <div id="adminContainer" class="hidden">
+                    <h3>Kelola User</h3>
+                    <table id="userTable">
+                        <thead><tr><th>No</th><th>Nama</th><th>Aksi</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Variabel global untuk menyimpan data aplikasi dan status user
+        let currentUser = null;
+        let activeItemInput = null;
+        const appData = {
+            users: JSON.parse(localStorage.getItem("users") || "[]"),
+            barangList: JSON.parse(localStorage.getItem("barangList") || "[]"),
+            pengirimanList: JSON.parse(localStorage.getItem("pengirimanList") || "[]"),
+            mutasiList: JSON.parse(localStorage.getItem("mutasiList") || "[]"),
+            verifiedList: JSON.parse(localStorage.getItem("verifiedList") || "[]")
+        };
+
+        // Fungsi yang dijalankan saat halaman pertama kali dimuat
+        window.onload = function() {
+            // Cek apakah ada sesi pengguna yang tersimpan di local storage
+            const storedUser = localStorage.getItem('loggedInUser');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                // Jika ada, langsung tampilkan halaman utama
+                document.getElementById("login").classList.add("hidden");
+                document.getElementById("register").classList.add("hidden");
+                document.getElementById("mainApp").classList.remove("hidden");
+                document.getElementById("loggedInUser").textContent = currentUser.nama;
+                
+                // Jika user adalah admin, tampilkan tombol kelola user
+                if (currentUser && currentUser.admin) {
+                    document.getElementById('adminBtn').classList.remove('hidden');
+                } else {
+                    document.getElementById('adminBtn').classList.add('hidden');
+                }
+
+                // Arahkan ke halaman default
+                showPage('pengiriman');
+            }
+        };
+
+        // Fungsi untuk menampilkan modal info dengan pesan kustom
+        function showInfoModal(message) {
+            const modal = document.getElementById('infoModal');
+            document.getElementById('modalMessage').innerText = message;
+            modal.style.display = 'block';
+        }
+        
+        // Fungsi untuk menutup modal info
+        function closeInfoModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // Fungsi untuk menampilkan modal konfirmasi
+        let confirmationCallback = null;
+        function showConfirmationModal(message, callback) {
+            const modal = document.getElementById('confirmationModal');
+            document.getElementById('confirmationMessage').innerText = message;
+            confirmationCallback = callback;
+            modal.style.display = 'block';
+        }
+
+        // Atur event listener untuk tombol konfirmasi
+        document.getElementById('confirmBtn').onclick = function() {
+            if (confirmationCallback) {
+                confirmationCallback(true);
+            }
+            document.getElementById('confirmationModal').style.display = 'none';
+        };
+
+        document.getElementById('cancelBtn').onclick = function() {
+            if (confirmationCallback) {
+                confirmationCallback(false);
+            }
+            document.getElementById('confirmationModal').style.display = 'none';
+        };
+
+        // Fungsi untuk menyimpan semua data ke localStorage
+        function saveAppData() {
+            for (const key in appData) {
+                localStorage.setItem(key, JSON.stringify(appData[key]));
+            }
+        }
+
+        // Fungsi untuk menampilkan modal gambar
+        function showModal(src) {
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("modalImage");
+            modal.style.display = "block";
+            modalImg.src = src;
+        }
+
+        // Fungsi untuk menutup modal gambar
+        function closeModal() {
+            const modal = document.getElementById("imageModal");
+            modal.style.display = "none";
+        }
+        
+        // Fungsi untuk menampilkan modal pemilihan barang
+        function openItemSelectionModal(inputElementOrId) {
+            if (typeof inputElementOrId === 'string') {
+                activeItemInput = document.getElementById(inputElementOrId);
+            } else {
+                activeItemInput = inputElementOrId.parentNode.querySelector('input');
+            }
+            document.getElementById("itemSelectionModal").style.display = "block";
+            renderItemSelectionList();
+        }
+        
+        // Fungsi untuk menutup modal pemilihan barang
+        function closeItemSelectionModal() {
+            document.getElementById("itemSelectionModal").style.display = "none";
+        }
+        
+        // Fungsi untuk merender daftar barang di modal
+        function renderItemSelectionList() {
+            const listContainer = document.getElementById("itemSelectionList");
+            const search = document.getElementById("searchItemInput").value.toLowerCase();
+            const filteredList = appData.barangList.filter(b => b.nama.toLowerCase().includes(search));
+            
+            listContainer.innerHTML = filteredList.map((b, i) => `
+                <div class="item-selection-row" onclick="selectItem(this)">
+                    <div>${i + 1}</div>
+                    <div>${b.nama}</div>
+                    <div>${b.jenis}</div>
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="item-${b.nama}" value="${b.nama}" class="item-checkbox">
+                        <label for="item-${b.nama}" class="custom-checkbox"></label>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Fungsi untuk memilih barang dari modal
+        function selectItem(row) {
+            const itemName = row.querySelector('.item-checkbox').value;
+            if (activeItemInput) {
+                activeItemInput.value = itemName;
+                closeItemSelectionModal();
+            }
+        }
+
+        function login() {
+            const u = document.getElementById("loginUser").value;
+            const p = document.getElementById("loginPass").value;
+            let foundUser = null;
+
+            // Admin default
+            if (u === "XALEXX" && p === "130305") {
+                foundUser = { nama: u, admin: true };
+            } else {
+                foundUser = appData.users.find(x => x.nama === u && x.pass === p);
+            }
+
+            if (!foundUser) {
+                showInfoModal("User/Password salah.");
+                return;
+            }
+
+            // Simpan data user yang login ke local storage
+            localStorage.setItem('loggedInUser', JSON.stringify(foundUser));
+
+            currentUser = foundUser;
+            document.getElementById("login").classList.add("hidden");
+            document.getElementById("register").classList.add("hidden");
+            document.getElementById("mainApp").classList.remove("hidden");
+            
+            // Tampilkan nama user di pojok kanan atas
+            document.getElementById("loggedInUser").textContent = currentUser.nama;
+
+            // Arahkan ke halaman default setelah login
+            showPage('pengiriman');
+        }
+
+        function register() {
+            const u = document.getElementById("regUser").value;
+            const p = document.getElementById("regPass").value;
+            if (!u || !p) {
+                showInfoModal("Nama dan Password harus diisi.");
+                return;
+            }
+            if (appData.users.some(user => user.nama === u)) {
+                 showInfoModal("Nama pengguna sudah ada. Silakan gunakan nama lain.");
+                return;
+            }
+            appData.users.push({ nama: u, pass: p, admin: false });
+            saveAppData();
+            showInfoModal("Berhasil daftar. Silakan login.");
+            showLogin();
+        }
+
+        function showRegister() {
+            document.getElementById("login").classList.add("hidden");
+            document.getElementById("register").classList.remove("hidden");
+        }
+
+        function showLogin() {
+            document.getElementById("login").classList.remove("hidden");
+            document.getElementById("register").classList.add("hidden");
+        }
+
+        function logout() {
+            // Hapus sesi dari local storage
+            localStorage.removeItem('loggedInUser');
+            currentUser = null;
+            location.reload();
+        }
+
+        function showPage(id) {
+            const pages = ["pengiriman", "mutasi", "verifikasi", "profile"];
+            pages.forEach(x => {
+                document.getElementById(x).classList.add("hidden");
+                const btn = document.getElementById(x + "Btn");
+                if (btn) btn.classList.remove("active");
+            });
+            document.getElementById(id).classList.remove("hidden");
+            const currentBtn = document.getElementById(id + "Btn");
+            if (currentBtn) currentBtn.classList.add("active");
+            
+            if (id === 'profile') {
+                if (currentUser && currentUser.admin) {
+                    document.getElementById('adminBtn').classList.remove('hidden');
+                } else {
+                    document.getElementById('adminBtn').classList.add('hidden');
+                }
+                showProfileSection('barang');
+            } else if (id === 'pengiriman') {
+                renderPengiriman();
+            } else if (id === 'mutasi') {
+                renderMutasi();
+            } else if (id === 'verifikasi') {
+                renderVerifikasi();
+            }
+        }
+
+        function showProfileSection(sectionId) {
+            ['barangContainer', 'verifiedContainer', 'adminContainer'].forEach(x => document.getElementById(x).classList.add('hidden'));
+            document.getElementById(`${sectionId}Container`).classList.remove('hidden');
+            if (sectionId === 'barang') {
+                renderBarang();
+            } else if (sectionId === 'verified') {
+                renderVerifiedData();
+            } else if (sectionId === 'user') {
+                renderUser();
+            }
+        }
+        
+        // ----------------- BARANG -----------------
+        function renderBarang() {
+            const list = appData.barangList;
+            const search = document.getElementById("searchBarang").value.toLowerCase();
+            const tbody = document.querySelector("#barangTable tbody");
+            const isAdmin = currentUser && currentUser.admin;
+            tbody.innerHTML = list
+                .filter(b => b.nama.toLowerCase().includes(search))
+                .map((b, i) => `<tr>
+                    <td>${i + 1}</td>
+                    <td>${b.nama}</td>
+                    <td>${b.jenis}</td>
+                    <td>
+                        ${isAdmin ? `<button onclick="editBarang('${b.nama}')">Edit</button>` : ''}
+                        ${isAdmin ? `<button onclick="deleteBarang('${b.nama}')" style="background-color: #e74c3c;">Hapus</button>` : ''}
+                        ${!isAdmin ? `<span>Tidak ada aksi</span>` : ''}
+                    </td>
+                </tr>`).join("");
+        }
+
+        function uploadExcel() {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+            const f = document.getElementById("excelInput").files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = e => {
+                const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                const sh = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sh, { header: 1 });
+                const newData = [];
+                for (let i = 1; i < rows.length; i++) {
+                    if (rows[i][0] && rows[i][1]) newData.push({ nama: rows[i][0], jenis: rows[i][1] });
+                }
+                appData.barangList = appData.barangList.concat(newData);
+                saveAppData();
+                renderBarang();
+                showInfoModal("Data barang berhasil diunggah.");
+            };
+            r.readAsArrayBuffer(f);
+        }
+
+        function addBarang() {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+            const n = document.getElementById("barangNama").value;
+            const j = document.getElementById("barangJenis").value;
+            if (!n || !j) {
+                showInfoModal("Nama dan jenis barang harus diisi.");
+                return;
+            }
+            appData.barangList.push({ nama: n, jenis: j });
+            saveAppData();
+            document.getElementById("barangNama").value = "";
+            document.getElementById("barangJenis").value = "";
+            renderBarang();
+        }
+
+        function editBarang(nama) {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+            const index = appData.barangList.findIndex(b => b.nama === nama);
+            if (index !== -1) {
+                showConfirmationModal(`Apakah Anda yakin ingin mengedit barang '${nama}'?`, (isConfirmed) => {
+                    if (isConfirmed) {
+                        const newName = prompt(`Masukkan nama baru untuk '${nama}':`);
+                        const newJenis = prompt(`Masukkan jenis baru untuk '${nama}':`);
+                        if (newName && newJenis) {
+                            appData.barangList[index].nama = newName;
+                            appData.barangList[index].jenis = newJenis;
+                            saveAppData();
+                            renderBarang();
+                            showInfoModal("Barang berhasil diubah.");
+                        }
+                    }
+                });
+            }
+        }
+
+        function deleteBarang(nama) {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+            const index = appData.barangList.findIndex(b => b.nama === nama);
+            if (index !== -1) {
+                showConfirmationModal(`Apakah Anda yakin ingin menghapus barang '${nama}'?`, (isConfirmed) => {
+                    if (isConfirmed) {
+                        appData.barangList.splice(index, 1);
+                        saveAppData();
+                        renderBarang();
+                        showInfoModal("Barang berhasil dihapus.");
+                    }
+                });
+            }
+        }
+
+        // ----------------- PENGIRIMAN -----------------
+        function addPengiriman() {
+            if (!currentUser) { showInfoModal("Anda harus login untuk menambah data."); return; }
+            const konsumen = document.getElementById("pengirimanKonsumen").value;
+            const barang = document.getElementById("pengirimanBarang").value;
+            const jumlah = document.getElementById("pengirimanJumlah").value;
+            const driver = document.getElementById("pengirimanDriver").value;
+            if (!konsumen || !barang || !jumlah || !driver) {
+                showInfoModal("Semua field harus diisi.");
+                return;
+            }
+            const newItem = {
+                id: Date.now().toString(),
+                tanggal: new Date().toLocaleDateString('id-ID'),
+                konsumen,
+                barang,
+                jumlah,
+                driver,
+                type: 'pengiriman',
+                status: 'Menunggu Verifikasi',
+                verified: false,
+                uploader: currentUser.nama
+            };
+            appData.pengirimanList.push(newItem);
+            saveAppData();
+            renderPengiriman();
+            document.getElementById("pengirimanKonsumen").value = "";
+            document.getElementById("pengirimanBarang").value = "";
+            document.getElementById("pengirimanJumlah").value = "1";
+            document.getElementById("pengirimanDriver").value = "";
+            showInfoModal("Pengiriman berhasil ditambahkan.");
+        }
+
+        function renderPengiriman() {
+            const list = appData.pengirimanList;
+            const tbody = document.querySelector("#pengirimanTable tbody");
+            tbody.innerHTML = list.map((item, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${item.konsumen}</td>
+                    <td>${item.barang}</td>
+                    <td>${item.jumlah}</td>
+                    <td>${item.driver}</td>
+                    <td>
+                        <button onclick="editPengiriman('${item.id}')">Edit</button>
+                        <button onclick="deletePengiriman('${item.id}')" style="background-color: #e74c3c;">Hapus</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function editPengiriman(id) {
+            const item = appData.pengirimanList.find(x => x.id === id);
+            if (!item) return;
+
+            showConfirmationModal(`Apakah Anda yakin ingin mengedit data pengiriman ini?`, (isConfirmed) => {
+                if (isConfirmed) {
+                    const newKonsumen = prompt("Nama Konsumen Baru:", item.konsumen);
+                    const newBarang = prompt("Nama Barang Baru:", item.barang);
+                    const newJumlah = prompt("Jumlah Baru:", item.jumlah);
+                    const newDriver = prompt("Nama Driver Baru:", item.driver);
+                    if (newKonsumen && newBarang && newJumlah && newDriver) {
+                        item.konsumen = newKonsumen;
+                        item.barang = newBarang;
+                        item.jumlah = newJumlah;
+                        item.driver = newDriver;
+                        saveAppData();
+                        renderPengiriman();
+                        showInfoModal("Data pengiriman berhasil diubah.");
+                    }
+                }
+            });
+        }
+
+        function deletePengiriman(id) {
+            showConfirmationModal(`Apakah Anda yakin ingin menghapus data pengiriman ini?`, (isConfirmed) => {
+                if (isConfirmed) {
+                    appData.pengirimanList = appData.pengirimanList.filter(x => x.id !== id);
+                    saveAppData();
+                    renderPengiriman();
+                    showInfoModal("Data pengiriman berhasil dihapus.");
+                }
+            });
+        }
+        
+        // ----------------- MUTASI -----------------
+        function addMutasiInput() {
+            const container = document.getElementById('mutasiInputs');
+            const newRow = document.createElement('div');
+            newRow.classList.add('mutasi-item-row');
+            newRow.innerHTML = `
+                <div class="input-with-icon">
+                    <input class="mutasi-barang" placeholder="Nama Barang">
+                    <i class="fas fa-search search-icon" onclick="openItemSelectionModal(this)"></i>
+                </div>
+                <input class="mutasi-jumlah" type="number" placeholder="Jumlah" value="1" min="1">
+                <button onclick="removeMutasiInput(this)" style="background-color: #e74c3c;">Hapus</button>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function removeMutasiInput(button) {
+            button.parentNode.remove();
+        }
+
+        function addMutasi() {
+            if (!currentUser) { showInfoModal("Anda harus login untuk menambah data."); return; }
+            const driver = document.getElementById("mutasiDriver").value;
+            const tujuan = document.getElementById("mutasiTujuan").value;
+            const itemRows = document.querySelectorAll('#mutasiInputs .mutasi-item-row');
+            const items = [];
+            
+            if (!driver) {
+                 showInfoModal("Nama driver harus diisi.");
+                 return;
+            }
+
+            itemRows.forEach(row => {
+                const barangInput = row.querySelector('.mutasi-barang');
+                const jumlahInput = row.querySelector('.mutasi-jumlah');
+                if (barangInput.value && jumlahInput.value > 0) {
+                    items.push({ barang: barangInput.value, jumlah: parseInt(jumlahInput.value) });
+                }
+            });
+
+            if (items.length === 0) {
+                showInfoModal("Setidaknya satu barang harus diisi.");
+                return;
+            }
+
+            const newItem = {
+                id: Date.now().toString(),
+                tanggal: new Date().toLocaleDateString('id-ID'),
+                driver,
+                tujuan,
+                items,
+                type: 'mutasi',
+                status: 'Menunggu Verifikasi',
+                verified: false,
+                uploader: currentUser.nama
+            };
+            appData.mutasiList.push(newItem);
+            saveAppData();
+            renderMutasi();
+            document.getElementById("mutasiDriver").value = "";
+            document.getElementById("mutasiInputs").innerHTML = `<div class="mutasi-item-row">
+                <div class="input-with-icon">
+                    <input class="mutasi-barang" placeholder="Nama Barang">
+                    <i class="fas fa-search search-icon" onclick="openItemSelectionModal(this)"></i>
+                </div>
+                <input class="mutasi-jumlah" type="number" placeholder="Jumlah" value="1" min="1">
+                <button onclick="removeMutasiInput(this)" style="background-color: #e74c3c;">Hapus</button>
+            </div>`;
+            showInfoModal("Mutasi berhasil ditambahkan.");
+        }
+
+        function renderMutasi() {
+            const list = appData.mutasiList;
+            const tbody = document.querySelector("#mutasiTable tbody");
+            tbody.innerHTML = list.map((item, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${item.items.map(i => `${i.barang}`).join('<br>')}</td>
+                    <td>${item.items.map(i => `${i.jumlah}`).join('<br>')}</td>
+                    <td>${item.driver}</td>
+                    <td>${item.tujuan}</td>
+                    <td>
+                        <button onclick="editMutasi('${item.id}')">Edit</button>
+                        <button onclick="deleteMutasi('${item.id}')" style="background-color: #e74c3c;">Hapus</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+        
+        function editMutasi(id) {
+             const item = appData.mutasiList.find(x => x.id === id);
+            if (!item) return;
+
+            showConfirmationModal(`Apakah Anda yakin ingin mengedit data mutasi ini?`, (isConfirmed) => {
+                if (isConfirmed) {
+                    const newDriver = prompt("Nama Driver Baru:", item.driver);
+                    const newTujuan = prompt("Tujuan Mutasi Baru:", item.tujuan);
+                    if (newDriver && newTujuan) {
+                        item.driver = newDriver;
+                        item.tujuan = newTujuan;
+                        saveAppData();
+                        renderMutasi();
+                        showInfoModal("Data mutasi berhasil diubah.");
+                    }
+                }
+            });
+        }
+
+        function deleteMutasi(id) {
+             showConfirmationModal(`Apakah Anda yakin ingin menghapus data mutasi ini?`, (isConfirmed) => {
+                if (isConfirmed) {
+                    appData.mutasiList = appData.mutasiList.filter(x => x.id !== id);
+                    saveAppData();
+                    renderMutasi();
+                    showInfoModal("Data mutasi berhasil dihapus.");
+                }
+            });
+        }
+
+        // ----------------- VERIFIKASI -----------------
+        function renderVerifikasi() {
+            if (!currentUser) { return; }
+            const container = document.getElementById("dataToVerify");
+            container.innerHTML = '';
+            
+            const toVerify = [
+                ...appData.pengirimanList.filter(item => !item.verified),
+                ...appData.mutasiList.filter(item => !item.verified)
+            ];
+
+            if (toVerify.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #7f8c8d;">Tidak ada data yang perlu diverifikasi.</p>';
+                return;
+            }
+
+            toVerify.forEach((item, i) => {
+                const row = document.createElement('div');
+                row.classList.add('verifikasi-item-row');
+                row.innerHTML = `
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="verify-${item.id}" value="${item.id}" class="item-checkbox">
+                        <label for="verify-${item.id}" class="custom-checkbox"></label>
+                    </div>
+                    <div>${item.status}</div>
+                    <div>${item.type === 'pengiriman' ? item.barang : item.items.map(i => i.barang).join(', ')}</div>
+                    <div>${item.type === 'pengiriman' ? item.jumlah : item.items.map(i => i.jumlah).join(', ')}</div>
+                    <div>${item.driver}</div>
+                    <div>
+                         <img src="${item.photo || 'https://placehold.co/100x100/34495e/ecf0f1?text=No+Foto'}" 
+                             alt="Foto Barang" 
+                             class="photo-preview"
+                             onclick="showModal('${item.photo || 'https://placehold.co/600x400/34495e/ecf0f1?text=No+Foto'}')">
+                    </div>
+                    <div>
+                        <input type="file" id="file-${item.id}" accept="image/*" class="hidden" onchange="uploadPhoto(this, '${item.id}')">
+                        <button onclick="document.getElementById('file-${item.id}').click()"><i class="fas fa-camera"></i> Unggah Foto</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function uploadPhoto(input, id) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageUrl = e.target.result;
+                    const item = appData.pengirimanList.find(x => x.id === id) || appData.mutasiList.find(x => x.id === id);
+                    if (item) {
+                        item.photo = imageUrl;
+                        saveAppData();
+                        renderVerifikasi();
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function verifySelectedItems() {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+            const selectedIds = Array.from(document.querySelectorAll('#dataToVerify .item-checkbox:checked')).map(cb => cb.value);
+
+            if (selectedIds.length === 0) {
+                showInfoModal("Pilih setidaknya satu item untuk diverifikasi.");
+                return;
+            }
+
+            showConfirmationModal(`Verifikasi ${selectedIds.length} item yang dipilih?`, (isConfirmed) => {
+                if (isConfirmed) {
+                    const verifiedItems = [];
+                    // Verifikasi pengiriman
+                    appData.pengirimanList = appData.pengirimanList.filter(item => {
+                        if (selectedIds.includes(item.id)) {
+                            item.status = 'Terverifikasi';
+                            item.verified = true;
+                            item.verifiedBy = currentUser.nama;
+                            item.verifiedDate = new Date().toLocaleDateString('id-ID');
+                            verifiedItems.push(item);
+                            return false; // Hapus dari daftar pengiriman
+                        }
+                        return true;
+                    });
+                    // Verifikasi mutasi
+                    appData.mutasiList = appData.mutasiList.filter(item => {
+                        if (selectedIds.includes(item.id)) {
+                            item.status = 'Terverifikasi';
+                            item.verified = true;
+                            item.verifiedBy = currentUser.nama;
+                            item.verifiedDate = new Date().toLocaleDateString('id-ID');
+                            verifiedItems.push(item);
+                            return false; // Hapus dari daftar mutasi
+                        }
+                        return true;
+                    });
+                    
+                    appData.verifiedList = [...appData.verifiedList, ...verifiedItems];
+                    saveAppData();
+                    renderVerifikasi();
+                    showInfoModal(`${verifiedItems.length} item berhasil diverifikasi!`);
+                }
+            });
+        }
+
+        // ----------------- DATA TERVERIFIKASI -----------------
+        function renderVerifiedData() {
+            const tbody = document.querySelector("#verifiedTable tbody");
+            tbody.innerHTML = appData.verifiedList.map((item, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${item.tanggal}</td>
+                    <td>${item.type === 'pengiriman' ? item.barang : item.items.map(i => i.barang).join(', ')}</td>
+                    <td>${item.type === 'pengiriman' ? item.jumlah : item.items.map(i => i.jumlah).join(', ')}</td>
+                    <td>${item.driver}</td>
+                    <td>${item.status}</td>
+                    <td>
+                        <img src="${item.photo || 'https://placehold.co/100x100/34495e/ecf0f1?text=No+Foto'}" 
+                             alt="Foto Barang" 
+                             class="photo-preview"
+                             onclick="showModal('${item.photo || 'https://placehold.co/600x400/34495e/ecf0f1?text=No+Foto'}')">
+                    </td>
+                    <td>${item.uploader}</td>
+                    <td>
+                        <button onclick="deleteVerified('${item.id}')" style="background-color: #e74c3c;">Hapus</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function deleteVerified(id) {
+             if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+             showConfirmationModal(`Apakah Anda yakin ingin menghapus data terverifikasi ini?`, (isConfirmed) => {
+                if (isConfirmed) {
+                    appData.verifiedList = appData.verifiedList.filter(x => x.id !== id);
+                    saveAppData();
+                    renderVerifiedData();
+                    showInfoModal("Data berhasil dihapus.");
+                }
+            });
+        }
+
+        function exportToExcel() {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+            if (appData.verifiedList.length === 0) {
+                 showInfoModal("Tidak ada data untuk diekspor.");
+                 return;
+            }
+            const data = appData.verifiedList.map(item => {
+                const baseData = {
+                    Tanggal: item.tanggal,
+                    Driver: item.driver,
+                    Status: item.status,
+                    'User Verifikasi': item.verifiedBy,
+                    'Tanggal Verifikasi': item.verifiedDate,
+                    'User Upload': item.uploader
+                };
+                if (item.type === 'pengiriman') {
+                    return {
+                        ...baseData,
+                        Barang: item.barang,
+                        Jumlah: item.jumlah,
+                        Tipe: 'Pengiriman',
+                        Konsumen: item.konsumen
+                    };
+                } else if (item.type === 'mutasi') {
+                    return {
+                        ...baseData,
+                        Barang: item.items.map(i => i.barang).join(', '),
+                        Jumlah: item.items.map(i => i.jumlah).join(', '),
+                        Tipe: 'Mutasi',
+                        Tujuan: item.tujuan
+                    };
+                }
+            });
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data Terverifikasi");
+            XLSX.writeFile(wb, "Data_Verifikasi_Tridjaya_Elektronik.xlsx");
+        }
+
+        // ----------------- KELOLA USER -----------------
+        function renderUser() {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+            const tbody = document.querySelector("#userTable tbody");
+            tbody.innerHTML = appData.users.map((user, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${user.nama} ${user.admin ? '(Admin)' : ''}</td>
+                    <td>
+                        <button onclick="toggleAdmin('${user.nama}')">${user.admin ? 'Hapus Admin' : 'Jadikan Admin'}</button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function toggleAdmin(nama) {
+            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
+             showConfirmationModal(`Apakah Anda yakin ingin mengubah status admin untuk user '${nama}'?`, (isConfirmed) => {
+                if (isConfirmed) {
+                    const user = appData.users.find(x => x.nama === nama);
+                    if (user) {
+                        user.admin = !user.admin;
+                        saveAppData();
+                        renderUser();
+                        showInfoModal(`Status admin untuk ${nama} berhasil diubah.`);
+                    }
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>
