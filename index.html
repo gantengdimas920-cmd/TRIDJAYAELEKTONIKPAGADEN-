@@ -249,7 +249,7 @@
         }
         .verifikasi-item-row {
             display: grid;
-            grid-template-columns: 30px 1fr 1fr 1fr 1fr 100px 1fr;
+            grid-template-columns: 30px 1fr 1fr 1fr 1fr 1fr;
             gap: 10px;
             padding: 10px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
@@ -265,7 +265,7 @@
             padding: 10px;
             border-bottom: 2px solid #ccc;
             display: grid;
-            grid-template-columns: 30px 1fr 1fr 1fr 1fr 100px 1fr;
+            grid-template-columns: 30px 1fr 1fr 1fr 1fr 1fr;
             gap: 10px;
             border-radius: 8px;
         }
@@ -318,7 +318,7 @@
         }
         .item-selection-row {
             display: grid;
-            grid-template-columns: 30px 2fr 1fr 30px;
+            grid-template-columns: 30px 2fr 1fr 1fr 30px;
             gap: 10px;
             padding: 10px;
             border-bottom: 1px solid #eee;
@@ -327,6 +327,11 @@
         }
         .item-selection-row:hover {
             background: #f0f4f7;
+        }
+        
+        .item-selection-row:first-child {
+            font-weight: bold;
+            background-color: #e0e0e0;
         }
 
         /* Custom Checkbox */
@@ -387,6 +392,26 @@
             font-size: 1.2em;
             color: #4a8df0;
             cursor: pointer;
+        }
+        
+        /* Gaya untuk tombol stok */
+        .stock-btn {
+            background: #2ecc71;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .stock-btn:hover {
+            background: #27ae60;
+            transform: translateY(-1px);
+        }
+        .stock-btn-minus {
+            background: #e74c3c;
+        }
+        .stock-btn-minus:hover {
+            background: #c0392b;
         }
 
         /* Gaya untuk modal konfirmasi */
@@ -536,15 +561,6 @@
                 <h2>Verifikasi Security</h2>
                 <hr>
                 <h3>Data yang Perlu Diverifikasi</h3>
-                <div class="verifikasi-header">
-                    <div></div>
-                    <div>Status</div>
-                    <div>Barang</div>
-                    <div>Jumlah</div>
-                    <div>Driver</div>
-                    <div>Foto</div>
-                    <div>Aksi</div>
-                </div>
                 <div id="dataToVerify" class="verifikasi-table-container">
                     <!-- Ini akan diisi secara dinamis oleh JavaScript -->
                 </div>
@@ -569,12 +585,14 @@
                     <div class="input-group">
                         <input id="barangNama" placeholder="Nama Barang">
                         <input id="barangJenis" placeholder="Jenis Barang">
+                        <!-- Input Stok dihapus sesuai permintaan -->
                         <button onclick="addBarang()">Tambah</button>
                     </div>
                     <div class="search-box">
-                        <input type="text" id="searchBarang" placeholder="Cari Nama Barang..." onkeyup="renderBarang()">
+                        <input type="text" id="searchBarang" placeholder="Cari Nama Barang..." onkeyup="debounceSearch()">
                     </div>
                     <table id="barangTable">
+                        <!-- Kolom Stok dihapus dari tabel -->
                         <thead><tr><th>No</th><th>Nama</th><th>Jenis</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
@@ -584,7 +602,7 @@
                     <h3>Data Terverifikasi</h3>
                     <button onclick="exportToExcel()">Ekspor ke Excel</button>
                     <table id="verifiedTable">
-                        <thead><tr><th>No</th><th>Tanggal</th><th>Barang</th><th>Jumlah</th><th>Driver</th><th>Status</th><th>Foto</th><th>User</th><th>Aksi</th></tr></thead>
+                        <thead><tr><th>No</th><th>Tanggal</th><th>Tipe</th><th>Barang</th><th>Jumlah</th><th>Driver</th><th>Status</th><th>User</th><th>Aksi</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -604,13 +622,25 @@
         // Variabel global untuk menyimpan data aplikasi dan status user
         let currentUser = null;
         let activeItemInput = null;
+        let searchTimeout;
+
+        // Data akun admin khusus
+        const ADMIN_USER = { nama: 'XALEXX', pass: '130305', admin: true };
+        
+        // Memuat data dari local storage atau menggunakan nilai default jika belum ada
         const appData = {
-            users: JSON.parse(localStorage.getItem("users") || "[]"),
-            barangList: JSON.parse(localStorage.getItem("barangList") || "[]"),
-            pengirimanList: JSON.parse(localStorage.getItem("pengirimanList") || "[]"),
-            mutasiList: JSON.parse(localStorage.getItem("mutasiList") || "[]"),
-            verifiedList: JSON.parse(localStorage.getItem("verifiedList") || "[]")
+            users: JSON.parse(localStorage.getItem("users")) || [],
+            barangList: JSON.parse(localStorage.getItem("barangList")) || [],
+            pengirimanList: JSON.parse(localStorage.getItem("pengirimanList")) || [],
+            mutasiList: JSON.parse(localStorage.getItem("mutasiList")) || [],
+            verifiedList: JSON.parse(localStorage.getItem("verifiedList")) || []
         };
+        
+        // Pastikan akun admin ada di data user jika tidak ada
+        if (!appData.users.some(user => user.nama.toUpperCase() === ADMIN_USER.nama.toUpperCase())) {
+            appData.users.unshift(ADMIN_USER);
+            saveAppData();
+        }
 
         // Fungsi yang dijalankan saat halaman pertama kali dimuat
         window.onload = function() {
@@ -622,39 +652,58 @@
                 document.getElementById("login").classList.add("hidden");
                 document.getElementById("register").classList.add("hidden");
                 document.getElementById("mainApp").classList.remove("hidden");
-                document.getElementById("loggedInUser").textContent = currentUser.nama;
+                const loggedInUserSpan = document.getElementById("loggedInUser");
+                if (loggedInUserSpan) {
+                     loggedInUserSpan.textContent = currentUser.nama;
+                }
                 
                 // Jika user adalah admin, tampilkan tombol kelola user
+                const adminBtn = document.getElementById('adminBtn');
                 if (currentUser && currentUser.admin) {
-                    document.getElementById('adminBtn').classList.remove('hidden');
+                    if(adminBtn) adminBtn.classList.remove('hidden');
                 } else {
-                    document.getElementById('adminBtn').classList.add('hidden');
+                    if(adminBtn) adminBtn.classList.add('hidden');
                 }
 
                 // Arahkan ke halaman default
                 showPage('pengiriman');
             }
         };
+        
+        // Fungsi debounce untuk menunda eksekusi pencarian
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(renderBarang, 300);
+        }
 
         // Fungsi untuk menampilkan modal info dengan pesan kustom
         function showInfoModal(message) {
             const modal = document.getElementById('infoModal');
-            document.getElementById('modalMessage').innerText = message;
-            modal.style.display = 'block';
+            const modalMessage = document.getElementById('modalMessage');
+            if (modal && modalMessage) {
+                modalMessage.innerText = message;
+                modal.style.display = 'block';
+            }
         }
         
         // Fungsi untuk menutup modal info
         function closeInfoModal() {
-            document.getElementById('infoModal').style.display = 'none';
+            const modal = document.getElementById('infoModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
 
         // Fungsi untuk menampilkan modal konfirmasi
         let confirmationCallback = null;
         function showConfirmationModal(message, callback) {
             const modal = document.getElementById('confirmationModal');
-            document.getElementById('confirmationMessage').innerText = message;
-            confirmationCallback = callback;
-            modal.style.display = 'block';
+            const confirmationMessage = document.getElementById('confirmationMessage');
+            if (modal && confirmationMessage) {
+                confirmationMessage.innerText = message;
+                confirmationCallback = callback;
+                modal.style.display = 'block';
+            }
         }
 
         // Atur event listener untuk tombol konfirmasi
@@ -662,14 +711,20 @@
             if (confirmationCallback) {
                 confirmationCallback(true);
             }
-            document.getElementById('confirmationModal').style.display = 'none';
+            const modal = document.getElementById('confirmationModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
         };
 
         document.getElementById('cancelBtn').onclick = function() {
             if (confirmationCallback) {
                 confirmationCallback(false);
             }
-            document.getElementById('confirmationModal').style.display = 'none';
+            const modal = document.getElementById('confirmationModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
         };
 
         // Fungsi untuk menyimpan semua data ke localStorage
@@ -683,14 +738,18 @@
         function showModal(src) {
             const modal = document.getElementById("imageModal");
             const modalImg = document.getElementById("modalImage");
-            modal.style.display = "block";
-            modalImg.src = src;
+            if (modal && modalImg) {
+                modal.style.display = "block";
+                modalImg.src = src;
+            }
         }
 
         // Fungsi untuk menutup modal gambar
         function closeModal() {
             const modal = document.getElementById("imageModal");
-            modal.style.display = "none";
+            if (modal) {
+                modal.style.display = "none";
+            }
         }
         
         // Fungsi untuk menampilkan modal pemilihan barang
@@ -698,15 +757,24 @@
             if (typeof inputElementOrId === 'string') {
                 activeItemInput = document.getElementById(inputElementOrId);
             } else {
-                activeItemInput = inputElementOrId.parentNode.querySelector('input');
+                activeItemInput = inputElementOrId.closest('.input-with-icon').querySelector('input');
             }
-            document.getElementById("itemSelectionModal").style.display = "block";
-            renderItemSelectionList();
+            const itemSelectionModal = document.getElementById("itemSelectionModal");
+            const searchItemInput = document.getElementById("searchItemInput");
+            if (itemSelectionModal && searchItemInput) {
+                itemSelectionModal.style.display = "block";
+                // Set nilai input pencarian di modal sesuai dengan nilai input yang sedang aktif
+                searchItemInput.value = activeItemInput.value;
+                renderItemSelectionList();
+            }
         }
         
         // Fungsi untuk menutup modal pemilihan barang
         function closeItemSelectionModal() {
-            document.getElementById("itemSelectionModal").style.display = "none";
+            const itemSelectionModal = document.getElementById("itemSelectionModal");
+            if (itemSelectionModal) {
+                itemSelectionModal.style.display = "none";
+            }
         }
         
         // Fungsi untuk merender daftar barang di modal
@@ -715,22 +783,37 @@
             const search = document.getElementById("searchItemInput").value.toLowerCase();
             const filteredList = appData.barangList.filter(b => b.nama.toLowerCase().includes(search));
             
-            listContainer.innerHTML = filteredList.map((b, i) => `
-                <div class="item-selection-row" onclick="selectItem(this)">
-                    <div>${i + 1}</div>
-                    <div>${b.nama}</div>
-                    <div>${b.jenis}</div>
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="item-${b.nama}" value="${b.nama}" class="item-checkbox">
-                        <label for="item-${b.nama}" class="custom-checkbox"></label>
+            if (listContainer) {
+                if (filteredList.length === 0) {
+                    listContainer.innerHTML = '<p style="text-align: center; color: #555; padding: 20px;">Barang tidak ditemukan.</p>';
+                    return;
+                }
+
+                // Gunakan nama barang asli dari data barang (case-sensitive)
+                const headerRow = `
+                    <div class="item-selection-row">
+                        <div>No</div>
+                        <div>Nama Barang</div>
+                        <div>Jenis</div>
+                        <div>Stok</div>
+                        <div></div>
                     </div>
-                </div>
-            `).join('');
+                `;
+                
+                listContainer.innerHTML = headerRow + filteredList.map((b, i) => `
+                    <div class="item-selection-row" onclick="selectItem(this, '${b.nama.replace(/'/g, "\\'")}')">
+                        <div>${i + 1}</div>
+                        <div>${b.nama}</div>
+                        <div>${b.jenis}</div>
+                        <div>${b.stok}</div>
+                        <div></div>
+                    </div>
+                `).join('');
+            }
         }
         
         // Fungsi untuk memilih barang dari modal
-        function selectItem(row) {
-            const itemName = row.querySelector('.item-checkbox').value;
+        function selectItem(row, itemName) {
             if (activeItemInput) {
                 activeItemInput.value = itemName;
                 closeItemSelectionModal();
@@ -742,30 +825,34 @@
             const p = document.getElementById("loginPass").value;
             let foundUser = null;
 
-            // Admin default
-            if (u === "XALEXX" && p === "130305") {
-                foundUser = { nama: u, admin: true };
-            } else {
-                foundUser = appData.users.find(x => x.nama === u && x.pass === p);
-            }
-
+            // Cari user di daftar yang sudah disimpan
+            foundUser = appData.users.find(x => x.nama.toLowerCase() === u.toLowerCase() && x.pass === p);
+            
             if (!foundUser) {
                 showInfoModal("User/Password salah.");
                 return;
             }
 
-            // Simpan data user yang login ke local storage
             localStorage.setItem('loggedInUser', JSON.stringify(foundUser));
-
             currentUser = foundUser;
-            document.getElementById("login").classList.add("hidden");
-            document.getElementById("register").classList.add("hidden");
-            document.getElementById("mainApp").classList.remove("hidden");
+            const loginEl = document.getElementById("login");
+            const registerEl = document.getElementById("register");
+            const mainAppEl = document.getElementById("mainApp");
+            const loggedInUserSpan = document.getElementById("loggedInUser");
+            if (loginEl && registerEl && mainAppEl && loggedInUserSpan) {
+                loginEl.classList.add("hidden");
+                registerEl.classList.add("hidden");
+                mainAppEl.classList.remove("hidden");
+                loggedInUserSpan.textContent = currentUser.nama;
+            }
             
-            // Tampilkan nama user di pojok kanan atas
-            document.getElementById("loggedInUser").textContent = currentUser.nama;
-
-            // Arahkan ke halaman default setelah login
+            // Periksa hak akses admin
+            const adminBtn = document.getElementById('adminBtn');
+            if (currentUser && currentUser.admin) {
+                if(adminBtn) adminBtn.classList.remove('hidden');
+            } else {
+                if(adminBtn) adminBtn.classList.add('hidden');
+            }
             showPage('pengiriman');
         }
 
@@ -776,49 +863,70 @@
                 showInfoModal("Nama dan Password harus diisi.");
                 return;
             }
-            if (appData.users.some(user => user.nama === u)) {
-                 showInfoModal("Nama pengguna sudah ada. Silakan gunakan nama lain.");
+            // Cek apakah nama user sudah ada (case-insensitive)
+            if (appData.users.some(user => user.nama.toLowerCase() === u.toLowerCase())) {
+                showInfoModal("Nama pengguna sudah ada. Silakan gunakan nama lain.");
                 return;
             }
-            appData.users.push({ nama: u, pass: p, admin: false });
+            
+            // Tambahkan user baru ke daftar
+            const newUser = { nama: u, pass: p, admin: false };
+            appData.users.push(newUser);
             saveAppData();
+            
             showInfoModal("Berhasil daftar. Silakan login.");
             showLogin();
         }
 
         function showRegister() {
-            document.getElementById("login").classList.add("hidden");
-            document.getElementById("register").classList.remove("hidden");
+            const loginEl = document.getElementById("login");
+            const registerEl = document.getElementById("register");
+            if (loginEl && registerEl) {
+                loginEl.classList.add("hidden");
+                registerEl.classList.remove("hidden");
+            }
         }
 
         function showLogin() {
-            document.getElementById("login").classList.remove("hidden");
-            document.getElementById("register").classList.add("hidden");
+            const loginEl = document.getElementById("login");
+            const registerEl = document.getElementById("register");
+            if (loginEl && registerEl) {
+                loginEl.classList.remove("hidden");
+                registerEl.classList.add("hidden");
+            }
         }
 
         function logout() {
-            // Hapus sesi dari local storage
             localStorage.removeItem('loggedInUser');
             currentUser = null;
             location.reload();
         }
 
         function showPage(id) {
+            // Cek akses ke halaman 'profile'
+            if (id === 'profile' && (!currentUser || !currentUser.admin)) {
+                showInfoModal("Akses ditolak. Hanya akun admin yang dapat melihat halaman ini.");
+                return;
+            }
+
             const pages = ["pengiriman", "mutasi", "verifikasi", "profile"];
             pages.forEach(x => {
-                document.getElementById(x).classList.add("hidden");
+                const el = document.getElementById(x);
+                if (el) el.classList.add("hidden");
                 const btn = document.getElementById(x + "Btn");
                 if (btn) btn.classList.remove("active");
             });
-            document.getElementById(id).classList.remove("hidden");
+            const selectedPage = document.getElementById(id);
+            if (selectedPage) selectedPage.classList.remove("hidden");
             const currentBtn = document.getElementById(id + "Btn");
             if (currentBtn) currentBtn.classList.add("active");
             
             if (id === 'profile') {
+                const adminBtn = document.getElementById('adminBtn');
                 if (currentUser && currentUser.admin) {
-                    document.getElementById('adminBtn').classList.remove('hidden');
+                    if (adminBtn) adminBtn.classList.remove('hidden');
                 } else {
-                    document.getElementById('adminBtn').classList.add('hidden');
+                    if (adminBtn) adminBtn.classList.add('hidden');
                 }
                 showProfileSection('barang');
             } else if (id === 'pengiriman') {
@@ -831,523 +939,560 @@
         }
 
         function showProfileSection(sectionId) {
-            ['barangContainer', 'verifiedContainer', 'adminContainer'].forEach(x => document.getElementById(x).classList.add('hidden'));
-            document.getElementById(`${sectionId}Container`).classList.remove('hidden');
+            // Hide all containers safely
+            const containers = ['barangContainer', 'verifiedContainer', 'adminContainer'];
+            containers.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+
+            // Show the selected container
+            const selectedContainer = document.getElementById(`${sectionId}Container`);
+            if (selectedContainer) selectedContainer.classList.remove('hidden');
+
+            // Deactivate all buttons safely
+            const buttons = ['profileBarangBtn', 'profileVerifiedBtn', 'adminBtn'];
+            buttons.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+
+            // Activate the selected button safely
+            const selectedBtnId = sectionId === 'barang' ? 'profileBarangBtn' : sectionId === 'verified' ? 'profileVerifiedBtn' : 'adminBtn';
+            const selectedBtn = document.getElementById(selectedBtnId);
+            if (selectedBtn) selectedBtn.classList.add('active');
+        
             if (sectionId === 'barang') {
                 renderBarang();
             } else if (sectionId === 'verified') {
-                renderVerifiedData();
+                renderVerified();
             } else if (sectionId === 'user') {
-                renderUser();
-            }
-        }
-        
-        // ----------------- BARANG -----------------
-        function renderBarang() {
-            const list = appData.barangList;
-            const search = document.getElementById("searchBarang").value.toLowerCase();
-            const tbody = document.querySelector("#barangTable tbody");
-            const isAdmin = currentUser && currentUser.admin;
-            tbody.innerHTML = list
-                .filter(b => b.nama.toLowerCase().includes(search))
-                .map((b, i) => `<tr>
-                    <td>${i + 1}</td>
-                    <td>${b.nama}</td>
-                    <td>${b.jenis}</td>
-                    <td>
-                        ${isAdmin ? `<button onclick="editBarang('${b.nama}')">Edit</button>` : ''}
-                        ${isAdmin ? `<button onclick="deleteBarang('${b.nama}')" style="background-color: #e74c3c;">Hapus</button>` : ''}
-                        ${!isAdmin ? `<span>Tidak ada aksi</span>` : ''}
-                    </td>
-                </tr>`).join("");
-        }
-
-        function uploadExcel() {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-            const f = document.getElementById("excelInput").files[0];
-            if (!f) return;
-            const r = new FileReader();
-            r.onload = e => {
-                const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const sh = wb.Sheets[wb.SheetNames[0]];
-                const rows = XLSX.utils.sheet_to_json(sh, { header: 1 });
-                const newData = [];
-                for (let i = 1; i < rows.length; i++) {
-                    if (rows[i][0] && rows[i][1]) newData.push({ nama: rows[i][0], jenis: rows[i][1] });
-                }
-                appData.barangList = appData.barangList.concat(newData);
-                saveAppData();
-                renderBarang();
-                showInfoModal("Data barang berhasil diunggah.");
-            };
-            r.readAsArrayBuffer(f);
-        }
-
-        function addBarang() {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-            const n = document.getElementById("barangNama").value;
-            const j = document.getElementById("barangJenis").value;
-            if (!n || !j) {
-                showInfoModal("Nama dan jenis barang harus diisi.");
-                return;
-            }
-            appData.barangList.push({ nama: n, jenis: j });
-            saveAppData();
-            document.getElementById("barangNama").value = "";
-            document.getElementById("barangJenis").value = "";
-            renderBarang();
-        }
-
-        function editBarang(nama) {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-            const index = appData.barangList.findIndex(b => b.nama === nama);
-            if (index !== -1) {
-                showConfirmationModal(`Apakah Anda yakin ingin mengedit barang '${nama}'?`, (isConfirmed) => {
-                    if (isConfirmed) {
-                        const newName = prompt(`Masukkan nama baru untuk '${nama}':`);
-                        const newJenis = prompt(`Masukkan jenis baru untuk '${nama}':`);
-                        if (newName && newJenis) {
-                            appData.barangList[index].nama = newName;
-                            appData.barangList[index].jenis = newJenis;
-                            saveAppData();
-                            renderBarang();
-                            showInfoModal("Barang berhasil diubah.");
-                        }
-                    }
-                });
+                renderUsers(); // Memanggil fungsi renderUsers saat memilih section user
             }
         }
 
-        function deleteBarang(nama) {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-            const index = appData.barangList.findIndex(b => b.nama === nama);
-            if (index !== -1) {
-                showConfirmationModal(`Apakah Anda yakin ingin menghapus barang '${nama}'?`, (isConfirmed) => {
-                    if (isConfirmed) {
-                        appData.barangList.splice(index, 1);
-                        saveAppData();
-                        renderBarang();
-                        showInfoModal("Barang berhasil dihapus.");
-                    }
-                });
-            }
-        }
-
-        // ----------------- PENGIRIMAN -----------------
         function addPengiriman() {
-            if (!currentUser) { showInfoModal("Anda harus login untuk menambah data."); return; }
             const konsumen = document.getElementById("pengirimanKonsumen").value;
-            const barang = document.getElementById("pengirimanBarang").value;
-            const jumlah = document.getElementById("pengirimanJumlah").value;
+            const barangNama = document.getElementById("pengirimanBarang").value;
+            const jumlah = parseInt(document.getElementById("pengirimanJumlah").value);
             const driver = document.getElementById("pengirimanDriver").value;
-            if (!konsumen || !barang || !jumlah || !driver) {
+
+            if (!konsumen || !barangNama || !jumlah || !driver) {
                 showInfoModal("Semua field harus diisi.");
                 return;
             }
-            const newItem = {
-                id: Date.now().toString(),
-                tanggal: new Date().toLocaleDateString('id-ID'),
+            
+            const newPengiriman = {
+                id: Date.now(),
+                date: new Date().toISOString(),
                 konsumen,
-                barang,
+                barang: barangNama,
                 jumlah,
                 driver,
-                type: 'pengiriman',
-                status: 'Menunggu Verifikasi',
-                verified: false,
-                uploader: currentUser.nama
+                type: 'Pengiriman',
+                status: 'Belum Diverifikasi',
+                photo: null
             };
-            appData.pengirimanList.push(newItem);
+
+            appData.pengirimanList.unshift(newPengiriman);
             saveAppData();
             renderPengiriman();
-            document.getElementById("pengirimanKonsumen").value = "";
-            document.getElementById("pengirimanBarang").value = "";
-            document.getElementById("pengirimanJumlah").value = "1";
-            document.getElementById("pengirimanDriver").value = "";
-            showInfoModal("Pengiriman berhasil ditambahkan.");
+            document.getElementById("pengirimanKonsumen").value = '';
+            document.getElementById("pengirimanBarang").value = '';
+            document.getElementById("pengirimanJumlah").value = '1';
+            document.getElementById("pengirimanDriver").value = '';
         }
 
-        function renderPengiriman() {
-            const list = appData.pengirimanList;
-            const tbody = document.querySelector("#pengirimanTable tbody");
-            tbody.innerHTML = list.map((item, i) => `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${item.konsumen}</td>
-                    <td>${item.barang}</td>
-                    <td>${item.jumlah}</td>
-                    <td>${item.driver}</td>
-                    <td>
-                        <button onclick="editPengiriman('${item.id}')">Edit</button>
-                        <button onclick="deletePengiriman('${item.id}')" style="background-color: #e74c3c;">Hapus</button>
-                    </td>
-                </tr>
-            `).join("");
-        }
-
-        function editPengiriman(id) {
-            const item = appData.pengirimanList.find(x => x.id === id);
-            if (!item) return;
-
-            showConfirmationModal(`Apakah Anda yakin ingin mengedit data pengiriman ini?`, (isConfirmed) => {
-                if (isConfirmed) {
-                    const newKonsumen = prompt("Nama Konsumen Baru:", item.konsumen);
-                    const newBarang = prompt("Nama Barang Baru:", item.barang);
-                    const newJumlah = prompt("Jumlah Baru:", item.jumlah);
-                    const newDriver = prompt("Nama Driver Baru:", item.driver);
-                    if (newKonsumen && newBarang && newJumlah && newDriver) {
-                        item.konsumen = newKonsumen;
-                        item.barang = newBarang;
-                        item.jumlah = newJumlah;
-                        item.driver = newDriver;
-                        saveAppData();
-                        renderPengiriman();
-                        showInfoModal("Data pengiriman berhasil diubah.");
-                    }
-                }
-            });
-        }
-
-        function deletePengiriman(id) {
-            showConfirmationModal(`Apakah Anda yakin ingin menghapus data pengiriman ini?`, (isConfirmed) => {
-                if (isConfirmed) {
-                    appData.pengirimanList = appData.pengirimanList.filter(x => x.id !== id);
-                    saveAppData();
-                    renderPengiriman();
-                    showInfoModal("Data pengiriman berhasil dihapus.");
-                }
-            });
-        }
-        
-        // ----------------- MUTASI -----------------
         function addMutasiInput() {
-            const container = document.getElementById('mutasiInputs');
-            const newRow = document.createElement('div');
-            newRow.classList.add('mutasi-item-row');
-            newRow.innerHTML = `
-                <div class="input-with-icon">
-                    <input class="mutasi-barang" placeholder="Nama Barang">
-                    <i class="fas fa-search search-icon" onclick="openItemSelectionModal(this)"></i>
-                </div>
-                <input class="mutasi-jumlah" type="number" placeholder="Jumlah" value="1" min="1">
-                <button onclick="removeMutasiInput(this)" style="background-color: #e74c3c;">Hapus</button>
-            `;
-            container.appendChild(newRow);
+            const mutasiInputsContainer = document.getElementById('mutasiInputs');
+            if (mutasiInputsContainer) {
+                const newRow = document.createElement('div');
+                newRow.classList.add('mutasi-item-row');
+                newRow.innerHTML = `
+                    <div class="input-with-icon">
+                        <input class="mutasi-barang" placeholder="Nama Barang">
+                        <i class="fas fa-search search-icon" onclick="openItemSelectionModal(this)"></i>
+                    </div>
+                    <input class="mutasi-jumlah" type="number" placeholder="Jumlah" value="1" min="1">
+                    <button onclick="removeMutasiInput(this)" class="btn-remove-item" style="background-color: #e74c3c;">Hapus</button>
+                `;
+                mutasiInputsContainer.appendChild(newRow);
+            }
         }
 
         function removeMutasiInput(button) {
-            button.parentNode.remove();
+            const mutasiInputsContainer = document.getElementById('mutasiInputs');
+            if (mutasiInputsContainer && mutasiInputsContainer.childElementCount > 1) {
+                button.parentNode.remove();
+            } else {
+                showInfoModal("Minimal harus ada satu barang mutasi.");
+            }
         }
 
         function addMutasi() {
-            if (!currentUser) { showInfoModal("Anda harus login untuk menambah data."); return; }
             const driver = document.getElementById("mutasiDriver").value;
             const tujuan = document.getElementById("mutasiTujuan").value;
-            const itemRows = document.querySelectorAll('#mutasiInputs .mutasi-item-row');
             const items = [];
-            
-            if (!driver) {
-                 showInfoModal("Nama driver harus diisi.");
-                 return;
-            }
+            let allFilled = true;
 
-            itemRows.forEach(row => {
-                const barangInput = row.querySelector('.mutasi-barang');
-                const jumlahInput = row.querySelector('.mutasi-jumlah');
-                if (barangInput.value && jumlahInput.value > 0) {
-                    items.push({ barang: barangInput.value, jumlah: parseInt(jumlahInput.value) });
+            const mutasiRows = document.querySelectorAll('#mutasiInputs .mutasi-item-row');
+            mutasiRows.forEach(row => {
+                const barang = row.querySelector('.mutasi-barang').value;
+                const jumlah = parseInt(row.querySelector('.mutasi-jumlah').value);
+                if (!barang || !jumlah) {
+                    allFilled = false;
+                } else {
+                    items.push({ barang, jumlah });
                 }
             });
 
-            if (items.length === 0) {
-                showInfoModal("Setidaknya satu barang harus diisi.");
+            if (!driver || !tujuan || !allFilled) {
+                if (allFilled) showInfoModal("Semua field harus diisi."); // Pesan jika field kosong
                 return;
             }
 
-            const newItem = {
-                id: Date.now().toString(),
-                tanggal: new Date().toLocaleDateString('id-ID'),
-                driver,
-                tujuan,
-                items,
-                type: 'mutasi',
-                status: 'Menunggu Verifikasi',
-                verified: false,
-                uploader: currentUser.nama
-            };
-            appData.mutasiList.push(newItem);
+            items.forEach(item => {
+                const newMutasi = {
+                    id: Date.now() + Math.random(), // Gunakan random untuk menghindari duplikat ID jika disimpan berdekatan
+                    date: new Date().toISOString(),
+                    barang: item.barang,
+                    jumlah: item.jumlah,
+                    driver,
+                    tujuan,
+                    type: 'Mutasi',
+                    status: 'Belum Diverifikasi',
+                    photo: null
+                };
+                appData.mutasiList.unshift(newMutasi);
+            });
+            
             saveAppData();
             renderMutasi();
-            document.getElementById("mutasiDriver").value = "";
-            document.getElementById("mutasiInputs").innerHTML = `<div class="mutasi-item-row">
-                <div class="input-with-icon">
-                    <input class="mutasi-barang" placeholder="Nama Barang">
-                    <i class="fas fa-search search-icon" onclick="openItemSelectionModal(this)"></i>
-                </div>
-                <input class="mutasi-jumlah" type="number" placeholder="Jumlah" value="1" min="1">
-                <button onclick="removeMutasiInput(this)" style="background-color: #e74c3c;">Hapus</button>
-            </div>`;
-            showInfoModal("Mutasi berhasil ditambahkan.");
+            document.getElementById("mutasiDriver").value = '';
+            document.getElementById("mutasiTujuan").value = 'TRIDJAYA ELEKTRONIK PAGADEN';
+            const mutasiInputsContainer = document.getElementById('mutasiInputs');
+            if (mutasiInputsContainer) {
+                mutasiInputsContainer.innerHTML = `
+                    <div class="mutasi-item-row">
+                        <div class="input-with-icon">
+                            <input class="mutasi-barang" placeholder="Nama Barang">
+                            <i class="fas fa-search search-icon" onclick="openItemSelectionModal(this)"></i>
+                        </div>
+                        <input class="mutasi-jumlah" type="number" placeholder="Jumlah" value="1" min="1">
+                        <button onclick="removeMutasiInput(this)" class="btn-remove-item" style="background-color: #e74c3c;">Hapus</button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderPengiriman() {
+            const tableBody = document.getElementById("pengirimanTable").querySelector("tbody");
+            if (tableBody) {
+                tableBody.innerHTML = '';
+                appData.pengirimanList.forEach((item, index) => {
+                    const row = `<tr>
+                        <td>${index + 1}</td>
+                        <td>${item.konsumen}</td>
+                        <td>${item.barang}</td>
+                        <td>${item.jumlah}</td>
+                        <td>${item.driver}</td>
+                        <td><button onclick="deleteItem('pengiriman', '${item.id}')">Hapus</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            }
         }
 
         function renderMutasi() {
-            const list = appData.mutasiList;
-            const tbody = document.querySelector("#mutasiTable tbody");
-            tbody.innerHTML = list.map((item, i) => `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${item.items.map(i => `${i.barang}`).join('<br>')}</td>
-                    <td>${item.items.map(i => `${i.jumlah}`).join('<br>')}</td>
-                    <td>${item.driver}</td>
-                    <td>${item.tujuan}</td>
-                    <td>
-                        <button onclick="editMutasi('${item.id}')">Edit</button>
-                        <button onclick="deleteMutasi('${item.id}')" style="background-color: #e74c3c;">Hapus</button>
-                    </td>
-                </tr>
-            `).join("");
-        }
-        
-        function editMutasi(id) {
-             const item = appData.mutasiList.find(x => x.id === id);
-            if (!item) return;
-
-            showConfirmationModal(`Apakah Anda yakin ingin mengedit data mutasi ini?`, (isConfirmed) => {
-                if (isConfirmed) {
-                    const newDriver = prompt("Nama Driver Baru:", item.driver);
-                    const newTujuan = prompt("Tujuan Mutasi Baru:", item.tujuan);
-                    if (newDriver && newTujuan) {
-                        item.driver = newDriver;
-                        item.tujuan = newTujuan;
-                        saveAppData();
-                        renderMutasi();
-                        showInfoModal("Data mutasi berhasil diubah.");
-                    }
-                }
-            });
-        }
-
-        function deleteMutasi(id) {
-             showConfirmationModal(`Apakah Anda yakin ingin menghapus data mutasi ini?`, (isConfirmed) => {
-                if (isConfirmed) {
-                    appData.mutasiList = appData.mutasiList.filter(x => x.id !== id);
-                    saveAppData();
-                    renderMutasi();
-                    showInfoModal("Data mutasi berhasil dihapus.");
-                }
-            });
-        }
-
-        // ----------------- VERIFIKASI -----------------
-        function renderVerifikasi() {
-            if (!currentUser) { return; }
-            const container = document.getElementById("dataToVerify");
-            container.innerHTML = '';
-            
-            const toVerify = [
-                ...appData.pengirimanList.filter(item => !item.verified),
-                ...appData.mutasiList.filter(item => !item.verified)
-            ];
-
-            if (toVerify.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #7f8c8d;">Tidak ada data yang perlu diverifikasi.</p>';
-                return;
+            const tableBody = document.getElementById("mutasiTable").querySelector("tbody");
+            if (tableBody) {
+                tableBody.innerHTML = '';
+                appData.mutasiList.forEach((item, index) => {
+                    const row = `<tr>
+                        <td>${index + 1}</td>
+                        <td>${item.barang}</td>
+                        <td>${item.jumlah}</td>
+                        <td>${item.driver}</td>
+                        <td>${item.tujuan}</td>
+                        <td><button onclick="deleteItem('mutasi', '${item.id}')">Hapus</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
             }
+        }
 
-            toVerify.forEach((item, i) => {
-                const row = document.createElement('div');
-                row.classList.add('verifikasi-item-row');
-                row.innerHTML = `
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="verify-${item.id}" value="${item.id}" class="item-checkbox">
-                        <label for="verify-${item.id}" class="custom-checkbox"></label>
-                    </div>
-                    <div>${item.status}</div>
-                    <div>${item.type === 'pengiriman' ? item.barang : item.items.map(i => i.barang).join(', ')}</div>
-                    <div>${item.type === 'pengiriman' ? item.jumlah : item.items.map(i => i.jumlah).join(', ')}</div>
-                    <div>${item.driver}</div>
-                    <div>
-                         <img src="${item.photo || 'https://placehold.co/100x100/34495e/ecf0f1?text=No+Foto'}" 
-                             alt="Foto Barang" 
-                             class="photo-preview"
-                             onclick="showModal('${item.photo || 'https://placehold.co/600x400/34495e/ecf0f1?text=No+Foto'}')">
-                    </div>
-                    <div>
-                        <input type="file" id="file-${item.id}" accept="image/*" class="hidden" onchange="uploadPhoto(this, '${item.id}')">
-                        <button onclick="document.getElementById('file-${item.id}').click()"><i class="fas fa-camera"></i> Unggah Foto</button>
+        function renderVerifikasi() {
+            const container = document.getElementById("dataToVerify");
+            if (container) {
+                container.innerHTML = '';
+                // Gabungkan data pengiriman dan mutasi yang belum terverifikasi
+                const dataToVerify = [...appData.pengirimanList, ...appData.mutasiList].filter(item => item.status === 'Belum Diverifikasi');
+                
+                if (dataToVerify.length === 0) {
+                    container.innerHTML = '<p style="text-align: center;">Tidak ada data yang perlu diverifikasi.</p>';
+                    return;
+                }
+
+                const headerHtml = `
+                    <div class="verifikasi-header">
+                        <div></div>
+                        <div>Status</div>
+                        <div>Barang</div>
+                        <div>Jumlah</div>
+                        <div>Driver</div>
+                        <div>Foto</div>
+                        <div>Aksi</div>
                     </div>
                 `;
-                container.appendChild(row);
-            });
+                container.innerHTML += headerHtml;
+
+                dataToVerify.forEach(item => {
+                    const row = document.createElement('div');
+                    row.classList.add('verifikasi-item-row');
+                    row.innerHTML = `
+                        <div class="checkbox-container">
+                            <input type="checkbox" id="check-${item.id}" data-id="${item.id}" data-type="${item.type}">
+                            <label for="check-${item.id}" class="custom-checkbox"></label>
+                        </div>
+                        <div>${item.status}</div>
+                        <div>${item.barang}</div>
+                        <div>${item.jumlah}</div>
+                        <div>${item.driver}</div>
+                        <div>
+                            <input type="file" onchange="previewPhoto(this, '${item.id}')">
+                            ${item.photo ? `<img src="${item.photo}" class="photo-preview" onclick="showModal(this.src)">` : ''}
+                        </div>
+                        <div>
+                            <button onclick="verifyItem('${item.id}', '${item.type}')">Verifikasi</button>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            }
         }
 
-        function uploadPhoto(input, id) {
+        // Simpan foto yang diunggah dan tampilkan pratinjau
+        function previewPhoto(input, id) {
             const file = input.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const imageUrl = e.target.result;
-                    const item = appData.pengirimanList.find(x => x.id === id) || appData.mutasiList.find(x => x.id === id);
+                    const dataUrl = e.target.result;
+                    const item = [...appData.pengirimanList, ...appData.mutasiList].find(i => i.id == id);
                     if (item) {
-                        item.photo = imageUrl;
+                        item.photo = dataUrl;
                         saveAppData();
-                        renderVerifikasi();
+                        showInfoModal("Foto berhasil diunggah.");
+                        renderVerifikasi(); // Render ulang untuk menampilkan pratinjau
                     }
                 };
                 reader.readAsDataURL(file);
             }
         }
+        
+        function verifyItem(id, type) {
+            showConfirmationModal("Anda yakin ingin memverifikasi data ini?", (confirmed) => {
+                if (confirmed) {
+                    let list = type === 'Pengiriman' ? appData.pengirimanList : appData.mutasiList;
+                    const index = list.findIndex(i => i.id == id);
+                    if (index !== -1) {
+                        const item = list[index];
+                        if (!item.photo) {
+                            showInfoModal("Harap unggah foto sebelum verifikasi.");
+                            return;
+                        }
 
+                        // Tambahkan data ke daftar terverifikasi
+                        appData.verifiedList.unshift({
+                            id: item.id,
+                            date: item.date,
+                            type: item.type,
+                            barang: item.barang,
+                            jumlah: item.jumlah,
+                            driver: item.driver,
+                            konsumen: item.konsumen || '-',
+                            tujuan: item.tujuan || '-',
+                            status: 'Terverifikasi',
+                            photo: item.photo,
+                            user: currentUser.nama
+                        });
+                        
+                        // Hapus dari daftar pengiriman/mutasi dan simpan
+                        list.splice(index, 1);
+                        saveAppData();
+                        showInfoModal("Verifikasi berhasil!");
+                        renderVerifikasi();
+                    }
+                }
+            });
+        }
+        
         function verifySelectedItems() {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-            const selectedIds = Array.from(document.querySelectorAll('#dataToVerify .item-checkbox:checked')).map(cb => cb.value);
+            const selectedItems = [];
+            document.querySelectorAll('#dataToVerify input[type="checkbox"]:checked').forEach(checkbox => {
+                const id = checkbox.getAttribute('data-id');
+                const type = checkbox.getAttribute('data-type');
+                selectedItems.push({ id, type });
+            });
 
-            if (selectedIds.length === 0) {
-                showInfoModal("Pilih setidaknya satu item untuk diverifikasi.");
+            if (selectedItems.length === 0) {
+                showInfoModal("Pilih minimal satu data untuk diverifikasi.");
                 return;
             }
 
-            showConfirmationModal(`Verifikasi ${selectedIds.length} item yang dipilih?`, (isConfirmed) => {
-                if (isConfirmed) {
-                    const verifiedItems = [];
-                    // Verifikasi pengiriman
-                    appData.pengirimanList = appData.pengirimanList.filter(item => {
-                        if (selectedIds.includes(item.id)) {
-                            item.status = 'Terverifikasi';
-                            item.verified = true;
-                            item.verifiedBy = currentUser.nama;
-                            item.verifiedDate = new Date().toLocaleDateString('id-ID');
-                            verifiedItems.push(item);
-                            return false; // Hapus dari daftar pengiriman
-                        }
-                        return true;
-                    });
-                    // Verifikasi mutasi
-                    appData.mutasiList = appData.mutasiList.filter(item => {
-                        if (selectedIds.includes(item.id)) {
-                            item.status = 'Terverifikasi';
-                            item.verified = true;
-                            item.verifiedBy = currentUser.nama;
-                            item.verifiedDate = new Date().toLocaleDateString('id-ID');
-                            verifiedItems.push(item);
-                            return false; // Hapus dari daftar mutasi
-                        }
-                        return true;
-                    });
-                    
-                    appData.verifiedList = [...appData.verifiedList, ...verifiedItems];
-                    saveAppData();
-                    renderVerifikasi();
-                    showInfoModal(`${verifiedItems.length} item berhasil diverifikasi!`);
+            let allPhotosUploaded = true;
+            selectedItems.forEach(({ id, type }) => {
+                const list = type === 'Pengiriman' ? appData.pengirimanList : appData.mutasiList;
+                const item = list.find(i => i.id == id);
+                if (item && !item.photo) {
+                    allPhotosUploaded = false;
+                    showInfoModal(`Foto untuk item '${item.barang}' belum diunggah. Semua verifikasi dibatalkan.`);
                 }
             });
-        }
 
-        // ----------------- DATA TERVERIFIKASI -----------------
-        function renderVerifiedData() {
-            const tbody = document.querySelector("#verifiedTable tbody");
-            tbody.innerHTML = appData.verifiedList.map((item, i) => `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${item.tanggal}</td>
-                    <td>${item.type === 'pengiriman' ? item.barang : item.items.map(i => i.barang).join(', ')}</td>
-                    <td>${item.type === 'pengiriman' ? item.jumlah : item.items.map(i => i.jumlah).join(', ')}</td>
-                    <td>${item.driver}</td>
-                    <td>${item.status}</td>
-                    <td>
-                        <img src="${item.photo || 'https://placehold.co/100x100/34495e/ecf0f1?text=No+Foto'}" 
-                             alt="Foto Barang" 
-                             class="photo-preview"
-                             onclick="showModal('${item.photo || 'https://placehold.co/600x400/34495e/ecf0f1?text=No+Foto'}')">
-                    </td>
-                    <td>${item.uploader}</td>
-                    <td>
-                        <button onclick="deleteVerified('${item.id}')" style="background-color: #e74c3c;">Hapus</button>
-                    </td>
-                </tr>
-            `).join("");
-        }
-
-        function deleteVerified(id) {
-             if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-             showConfirmationModal(`Apakah Anda yakin ingin menghapus data terverifikasi ini?`, (isConfirmed) => {
-                if (isConfirmed) {
-                    appData.verifiedList = appData.verifiedList.filter(x => x.id !== id);
-                    saveAppData();
-                    renderVerifiedData();
-                    showInfoModal("Data berhasil dihapus.");
-                }
-            });
-        }
-
-        function exportToExcel() {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-            if (appData.verifiedList.length === 0) {
-                 showInfoModal("Tidak ada data untuk diekspor.");
-                 return;
+            if (!allPhotosUploaded) {
+                return;
             }
-            const data = appData.verifiedList.map(item => {
-                const baseData = {
-                    Tanggal: item.tanggal,
-                    Driver: item.driver,
-                    Status: item.status,
-                    'User Verifikasi': item.verifiedBy,
-                    'Tanggal Verifikasi': item.verifiedDate,
-                    'User Upload': item.uploader
-                };
-                if (item.type === 'pengiriman') {
-                    return {
-                        ...baseData,
-                        Barang: item.barang,
-                        Jumlah: item.jumlah,
-                        Tipe: 'Pengiriman',
-                        Konsumen: item.konsumen
-                    };
-                } else if (item.type === 'mutasi') {
-                    return {
-                        ...baseData,
-                        Barang: item.items.map(i => i.barang).join(', '),
-                        Jumlah: item.items.map(i => i.jumlah).join(', '),
-                        Tipe: 'Mutasi',
-                        Tujuan: item.tujuan
-                    };
+
+            showConfirmationModal(`Anda yakin ingin memverifikasi ${selectedItems.length} data yang dipilih?`, (confirmed) => {
+                if (confirmed) {
+                    selectedItems.forEach(({ id, type }) => {
+                        let list = type === 'Pengiriman' ? appData.pengirimanList : appData.mutasiList;
+                        const index = list.findIndex(i => i.id == id);
+                        if (index !== -1) {
+                             const item = list[index];
+
+                            // Tambahkan data ke daftar terverifikasi
+                            appData.verifiedList.unshift({
+                                id: item.id,
+                                date: item.date,
+                                type: item.type,
+                                barang: item.barang,
+                                jumlah: item.jumlah,
+                                driver: item.driver,
+                                konsumen: item.konsumen || '-',
+                                tujuan: item.tujuan || '-',
+                                status: 'Terverifikasi',
+                                photo: item.photo,
+                                user: currentUser.nama
+                            });
+                            
+                            // Hapus dari daftar pengiriman/mutasi
+                            list.splice(index, 1);
+                        }
+                    });
+                    saveAppData();
+                    showInfoModal("Verifikasi yang dipilih berhasil!");
+                    renderVerifikasi();
                 }
             });
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Data Terverifikasi");
-            XLSX.writeFile(wb, "Data_Verifikasi_Tridjaya_Elektronik.xlsx");
         }
 
-        // ----------------- KELOLA USER -----------------
-        function renderUser() {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-            const tbody = document.querySelector("#userTable tbody");
-            tbody.innerHTML = appData.users.map((user, i) => `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${user.nama} ${user.admin ? '(Admin)' : ''}</td>
-                    <td>
-                        <button onclick="toggleAdmin('${user.nama}')">${user.admin ? 'Hapus Admin' : 'Jadikan Admin'}</button>
-                    </td>
-                </tr>
-            `).join("");
-        }
-
-        function toggleAdmin(nama) {
-            if (!currentUser || !currentUser.admin) { showInfoModal("Anda tidak memiliki izin untuk melakukan aksi ini."); return; }
-             showConfirmationModal(`Apakah Anda yakin ingin mengubah status admin untuk user '${nama}'?`, (isConfirmed) => {
-                if (isConfirmed) {
-                    const user = appData.users.find(x => x.nama === nama);
-                    if (user) {
-                        user.admin = !user.admin;
+        function deleteItem(type, id) {
+            showConfirmationModal("Anda yakin ingin menghapus data ini?", (confirmed) => {
+                if (confirmed) {
+                    let list = [];
+                    let index = -1;
+                    if (type === 'pengiriman') {
+                         list = appData.pengirimanList;
+                         index = list.findIndex(item => item.id == id);
+                    }
+                    else if (type === 'mutasi') {
+                         list = appData.mutasiList;
+                         index = list.findIndex(item => item.id == id);
+                    }
+                    else if (type === 'verified') {
+                         list = appData.verifiedList;
+                         index = list.findIndex(item => item.id == id);
+                    }
+                    else if (type === 'user') {
+                         list = appData.users;
+                         // Tambahan: Pastikan tidak menghapus akun admin
+                         index = list.findIndex(item => item.nama == id && !item.admin); 
+                    }
+                    else if (type === 'barang') {
+                         list = appData.barangList;
+                         index = list.findIndex(item => item.id == id);
+                    }
+                    
+                    if (index > -1) {
+                        list.splice(index, 1);
                         saveAppData();
-                        renderUser();
-                        showInfoModal(`Status admin untuk ${nama} berhasil diubah.`);
+                        showInfoModal("Data berhasil dihapus.");
+                        if (type === 'pengiriman') renderPengiriman();
+                        else if (type === 'mutasi') renderMutasi();
+                        else if (type === 'verified') renderVerified();
+                        else if (type === 'user') renderUsers();
+                        else if (type === 'barang') renderBarang();
                     }
                 }
             });
         }
 
+        function addBarang() {
+            const nama = document.getElementById("barangNama").value;
+            const jenis = document.getElementById("barangJenis").value;
+            if (!nama || !jenis) {
+                showInfoModal("Nama dan jenis barang harus diisi.");
+                return;
+            }
+            if (appData.barangList.some(b => b.nama.toLowerCase() === nama.toLowerCase())) {
+                 showInfoModal("Barang dengan nama tersebut sudah ada.");
+                 return;
+            }
+            appData.barangList.push({ id: Date.now(), nama, jenis, stok: 0 }); // Stok default 0
+            saveAppData();
+            renderBarang();
+            document.getElementById("barangNama").value = '';
+            document.getElementById("barangJenis").value = '';
+        }
+        
+        function uploadExcel() {
+            const file = document.getElementById('excelInput').files[0];
+            if (!file) {
+                showInfoModal("Pilih file Excel terlebih dahulu.");
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                if (jsonData.length === 0) {
+                    showInfoModal("File Excel kosong atau tidak valid.");
+                    return;
+                }
+
+                const headers = jsonData[0].map(h => h.toString().trim().toLowerCase());
+                const namaColIndex = headers.findIndex(h => h === 'nama' || h === 'anama');
+                const jenisColIndex = headers.findIndex(h => h === 'jenis' || h === 'jenis barang');
+
+                if (namaColIndex === -1) {
+                    showInfoModal("Format file Excel tidak valid. Pastikan ada kolom 'Nama' atau 'ANama'.");
+                    return;
+                }
+
+                // Mulai dari baris kedua karena baris pertama adalah header
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    const itemName = row[namaColIndex];
+                    const itemJenis = jenisColIndex !== -1 ? row[jenisColIndex] : 'Tidak Diketahui';
+                    
+                    if (!itemName) {
+                        continue; // Lewati baris jika nama barang kosong
+                    }
+                    
+                    // Cek apakah barang sudah ada di daftar
+                    const existingItem = appData.barangList.find(b => b.nama.toLowerCase() === itemName.toLowerCase());
+                    
+                    if (!existingItem) {
+                        // Jika tidak ada, tambahkan barang baru dengan stok 0 dan jenis 'Tidak Diketahui'
+                        appData.barangList.push({
+                            id: Date.now() + Math.random(),
+                            nama: itemName, // Simpan nama asli dari Excel
+                            jenis: itemJenis,
+                            stok: 0
+                        });
+                    }
+                }
+
+                saveAppData();
+                showInfoModal("Data barang dari Excel berhasil diunggah.");
+                renderBarang();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderBarang() {
+            const tableBody = document.getElementById("barangTable").querySelector("tbody");
+            if (tableBody) {
+                const searchTerm = document.getElementById("searchBarang").value.toLowerCase();
+                tableBody.innerHTML = '';
+                const filteredBarang = appData.barangList.filter(item => item.nama.toLowerCase().includes(searchTerm));
+                filteredBarang.forEach((item, index) => {
+                    const row = `<tr>
+                        <td>${index + 1}</td>
+                        <td>${item.nama}</td>
+                        <td>${item.jenis}</td>
+                        <td><button onclick="deleteItem('barang', '${item.id}')">Hapus</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            }
+        }
+        
+        function renderVerified() {
+            const tableBody = document.getElementById("verifiedTable").querySelector("tbody");
+            if (tableBody) {
+                tableBody.innerHTML = '';
+                appData.verifiedList.forEach((item, index) => {
+                    const row = `<tr>
+                        <td>${index + 1}</td>
+                        <td>${new Date(item.date).toLocaleString()}</td>
+                        <td>${item.type}</td>
+                        <td>${item.barang}</td>
+                        <td>${item.jumlah}</td>
+                        <td>${item.driver}</td>
+                        <td>${item.status}</td>
+                        <td>${item.user}</td>
+                        <td><button onclick="deleteItem('verified', '${item.id}')">Hapus</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            }
+        }
+
+        function exportToExcel() {
+            // Ambil data terverifikasi yang lengkap, termasuk foto dalam format Base64
+            const dataToExport = appData.verifiedList.map(item => ({
+                'Tanggal': new Date(item.date).toLocaleString(),
+                'Tipe': item.type,
+                'Barang': item.barang,
+                'Jumlah': item.jumlah,
+                'Driver': item.driver,
+                'Konsumen': item.konsumen,
+                'Tujuan Mutasi': item.tujuan,
+                'Status': item.status,
+                'User Verifikasi': item.user,
+                'Foto (Base64)': item.photo || 'N/A' // Sertakan data foto dalam kolom terpisah
+            }));
+
+            if (dataToExport.length === 0) {
+                showInfoModal("Tidak ada data terverifikasi untuk diekspor.");
+                return;
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Terverifikasi");
+
+            // Tulis file dan unduh
+            XLSX.writeFile(workbook, "Data_Terverifikasi_TRIDJAYA.xlsx");
+        }
+        
+        function renderUsers() {
+            const tableBody = document.getElementById("userTable").querySelector("tbody");
+            if (tableBody) {
+                tableBody.innerHTML = '';
+                // Filter pengguna admin agar tidak bisa dihapus
+                const nonAdminUsers = appData.users.filter(user => !user.admin);
+                
+                nonAdminUsers.forEach((user, index) => {
+                    const row = `<tr>
+                        <td>${index + 1}</td>
+                        <td>${user.nama}</td>
+                        <td><button onclick="deleteItem('user', '${user.nama}')" style="background-color: #e74c3c;">Hapus</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            }
+        }
     </script>
 </body>
 </html>
